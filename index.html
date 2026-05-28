@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captura de Documento - Verificação</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --success-color: #2ecc71;
+            --warning-color: #e67e22;
+            --danger-color: #e74c3c;
+            --dark-color: #2c3e50;
+            --light-color: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        #camera-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 75%; /* Aspect Ratio 4:3 */
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.2);
+        }
+
+        #video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Overlay para o formato do documento */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .document-guide {
+            width: 80%;
+            height: 60%;
+            border: 4px solid #fff;
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(255,255,255,0.5);
+            transition: border-color 0.3s ease;
+        }
+
+        /* Classes para indicar o estado do documento */
+        #doc-guide.processing {
+            border-color: var(--warning-color);
+            background-color: rgba(230, 126, 34, 0.2);
+        }
+
+        #doc-guide.success {
+            border-color: var(--success-color);
+            background-color: rgba(46, 204, 113, 0.2);
+        }
+
+        #error-message {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #fff;
+            background-color: rgba(231, 76, 60, 0.8);
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .controls {
+            margin-bottom: 1.5rem;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            margin: 0 5px;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #27ae60;
+        }
+
+        .btn-warning {
+            background-color: var(--warning-color);
+            color: white;
+        }
+        .btn-warning:hover {
+            background-color: #d35400;
+        }
+
+        #previews {
+            display: flex;
+            justify-content: space-around;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .preview-group {
+            flex: 1;
+        }
+
+        .preview-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            display: block;
+        }
+
+        .instructions {
+            background-color: #fff8e1;
+            border-left: 5px solid var(--warning-color);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        /* Esconder elementos inicialmente */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Processo de Verificação de Documento</h2>
+
+    <!-- Seção de Instruções Guiada -->
+    <div id="instruction-block" class="instructions">
+        <strong id="instruction-title">Passo 1: Frente do Documento</strong>
+        <p id="instruction-text">Por favor, posicione a FRENTE do seu documento dentro da moldura abaixo. Garanta que todos os dados estejam legíveis e que não haja reflexos.</p>
+    </div>
+
+    <!-- Container da Câmera -->
+    <div id="camera-container">
+        <video id="video" autoplay playsinline></video>
+        <div class="overlay">
+            <div id="doc-guide" class="document-guide"></div>
+        </div>
+        <div id="error-message"></div>
+    </div>
+
+    <!-- Controles de Captura -->
+    <div id="capture-controls" class="controls">
+        <button id="capture-btn" class="btn-primary">Tirar Foto (Frente)</button>
+    </div>
+
+    <!-- Controles de Confirmação (Escondidos inicialmente) -->
+    <div id="confirmation-controls" class="controls hidden">
+        <p>A foto ficou legível?</p>
+        <button id="retry-btn" class="btn-warning">Tentar Novamente</button>
+        <button id="confirm-btn" class="btn-success">Confirmar Foto</button>
+    </div>
+
+    <!-- Pré-visualização das Capturas -->
+    <div id="previews">
+        <div id="preview-front-group" class="preview-group hidden">
+            <p class="preview-title">Frente</p>
+            <canvas id="canvas-front"></canvas>
+        </div>
+        <div id="preview-back-group" class="preview-group hidden">
+            <p class="preview-title">Verso</p>
+            <canvas id="canvas-back"></canvas>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const captureBtn = document.getElementById('capture-btn');
+    const retryBtn = document.getElementById('retry-btn');
+    const confirmBtn = document.getElementById('confirm-btn');
+    const captureControls = document.getElementById('capture-controls');
+    const confirmationControls = document.getElementById('confirmation-controls');
+    const docGuide = document.getElementById('doc-guide');
+    const errorMessage = document.getElementById('error-message');
+
+    // Canvas de pré-visualização
+    const canvasFront = document.getElementById('canvas-front');
+    const canvasBack = document.getElementById('canvas-back');
+    const previewFrontGroup = document.getElementById('preview-front-group');
+    const previewBackGroup = document.getElementById('preview-back-group');
+
+    // Elementos de instrução
+    const instructionTitle = document.getElementById('instruction-title');
+    const instructionText = document.getElementById('instruction-text');
+
+    let stream;
+    let currentStep = 'front'; // Pode ser 'front' ou 'back'
+    let lastCapturedCanvas;
+
+    // Inicializar câmera
+    async function startCamera() {
+        errorMessage.style.display = 'none';
+        errorMessage.textContent = '';
+        docGuide.className = 'document-guide'; // Reset guide class
+
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment', // Preferir câmera traseira
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            });
+            video.srcObject = stream;
+        } catch (err) {
+            console.error('Erro ao acessar a câmera:', err);
+            errorMessage.textContent = 'Erro: Não foi possível acessar a câmera. Garanta que você está em uma conexão segura (HTTPS) e que concedeu a permissão.';
+            errorMessage.style.display = 'block';
+            captureBtn.disabled = true;
+        }
+    }
+
+    // Função para capturar a imagem do vídeo para um canvas
+    function captureToCanvas(canvas) {
+        const context = canvas.getContext('2d');
+        // Definir as dimensões do canvas baseadas no vídeo para manter a resolução
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        // Desenhar o frame atual do vídeo no canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return canvas;
+    }
+
+    // Função para gerenciar o estado de processamento/legibilidade (simulado)
+    function simulateLegibilityCheck() {
+        docGuide.classList.add('processing');
+        captureBtn.disabled = true;
+        
+        // Simula um tempo de "processamento" para verificar se a foto está boa
+        setTimeout(() => {
+            // Em uma implementação real, haveria um algoritmo de IA verificando o canvas aqui.
+            // Para este exemplo, apenas confirmamos a foto.
+            
+            // Trocar para os controles de confirmação
+            captureControls.classList.add('hidden');
+            confirmationControls.classList.remove('hidden');
+            docGuide.classList.remove('processing');
+            docGuide.classList.add('success');
+        }, 1200); // 1.2 segundos de simulação
+    }
+
+    // Ação do botão de captura
+    captureBtn.addEventListener('click', () => {
+        if (currentStep === 'front') {
+            lastCapturedCanvas = captureToCanvas(canvasFront);
+            previewFrontGroup.classList.remove('hidden');
+        } else if (currentStep === 'back') {
+            lastCapturedCanvas = captureToCanvas(canvasBack);
+            previewBackGroup.classList.remove('hidden');
+        }
+        simulateLegibilityCheck();
+    });
+
+    // Ação do botão "Tentar Novamente"
+    retryBtn.addEventListener('click', () => {
+        // Esconder a pré-visualização atual
+        if (currentStep === 'front') {
+            previewFrontGroup.classList.add('hidden');
+        } else {
+            previewBackGroup.classList.add('hidden');
+        }
+
+        // Resetar interface
+        confirmationControls.classList.add('hidden');
+        captureControls.classList.remove('hidden');
+        captureBtn.disabled = false;
+        docGuide.className = 'document-guide'; // Reset classes
+    });
+
+    // Ação do botão "Confirmar Foto"
+    confirmBtn.addEventListener('click', () => {
+        if (currentStep === 'front') {
+            // Preparar para o verso
+            currentStep = 'back';
+            
+            // Atualizar Instruções
+            instructionTitle.textContent = 'Passo 2: Verso do Documento';
+            instructionText.textContent = 'Agora, posicione o VERSO do seu documento dentro da moldura. Garanta boa iluminação e que os dados estejam legíveis.';
+            
+            // Atualizar botão
+            captureBtn.textContent = 'Tirar Foto (Verso)';
+
+            // Resetar interface para nova captura
+            confirmationControls.classList.add('hidden');
+            captureControls.classList.remove('hidden');
+            captureBtn.disabled = false;
+            docGuide.className = 'document-guide'; // Reset classes
+
+        } else if (currentStep === 'back') {
+            // Fluxo finalizado
+            endFlow();
+        }
+    });
+
+    // Função para finalizar o fluxo
+    function endFlow() {
+        instructionTitle.textContent = 'Captura Concluída!';
+        instructionText.textContent = 'As fotos da frente e do verso foram capturadas e confirmadas com sucesso.';
+        instructionText.style.color = 'var(--success-color)';
+        
+        // Parar a câmera
+        stream.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+        
+        // Esconder câmera e controles
+        document.getElementById('camera-container').classList.add('hidden');
+        confirmationControls.classList.add('hidden');
+        captureControls.classList.add('hidden');
+
+        // Em uma aplicação real, você pegaria os dados dos canvas (canvasFront.toDataURL()) e enviaria para o servidor.
+        console.log('Frente (Base64):', canvasFront.toDataURL());
+        console.log('Verso (Base64):', canvasBack.toDataURL());
+    }
+
+    // Iniciar
+    startCamera();
+
+</script>
+
+</body>
+</html>
